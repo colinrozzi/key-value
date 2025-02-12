@@ -50,7 +50,7 @@ impl State {
 struct Component;
 
 impl ActorGuest for Component {
-    fn init(_data: Vec<u8>) -> Vec<u8> {
+    fn init(_data: Option<Vec<u8>>) -> Vec<u8> {
         log("Initializing key-value store");
         let initial_state = State::new();
         //setup_data();
@@ -84,6 +84,14 @@ impl MessageGuest for Component {
 
     fn handle_request(msg: Json, state: Json) -> (Json, Json) {
         log("Handling request");
+        log(&format!(
+            "Request: {:?}",
+            String::from_utf8(msg.clone()).unwrap()
+        ));
+        log(&format!(
+            "State: {:?}",
+            String::from_utf8(state.clone()).unwrap()
+        ));
         let mut state: State = serde_json::from_slice(&state).unwrap();
         log("State deserialized");
         let request: Request = serde_json::from_slice(&msg).unwrap();
