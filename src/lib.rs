@@ -85,6 +85,7 @@ impl MessageGuest for Component {
     fn handle_request(msg: Json, state: Json) -> (Json, Json) {
         log("Handling request");
         let mut state: State = serde_json::from_slice(&state).unwrap();
+        log("State deserialized");
         let request: Request = serde_json::from_slice(&msg).unwrap();
         log(&format!("Request: {:?}", request));
         let mut response = json!({"status": "error", "message": "Unknown request type"});
