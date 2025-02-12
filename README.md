@@ -1,146 +1,134 @@
-# Chat State Actor
+# Key-Value Store Actor
 
-This actor manages the state of chat conversations using a directed acyclic graph (DAG) structure. It's designed to support features like conversation branching, persistent storage, and efficient message deduplication.
+This actor implements a persistent key-value store with support for atomic operations and content-addressed storage. It's designed to be a foundational component that other actors can build upon for their storage needs.
 
 ## Core Concepts
 
-### Message DAG Structure
-Chat history is stored as a DAG where:
-- Each message is a node in the graph
-- Each message has a pointer to its parent message
-- Messages are immutable and content-addressed using SHA1 hashes
-- Multiple chat threads can share common history
-
-Example:
-```
-Message1 <- Message2 <- Message3 (Chat A head)
-                    <- Message4 (Chat B head)
-```
+### Storage Model
+The key-value store provides:
+- Simple key-value pair storage
+- Content-addressed storage using SHA1 hashes
+- Atomic operations for data consistency
+- Persistence to disk
+- Efficient in-memory caching
 
 ### Data Storage
-All data is stored in a flat key-value structure:
-- `data/<sha1>.json` - Message objects identified by their content hash
-- `data/<title>.json` - Chat objects identified by their title
+Data is stored in a flat structure:
+- All data is serialized to JSON
+- Files are stored in the `data/` directory
+- Keys can be arbitrary strings
+- Values can be any JSON-serializable data
 
 This design:
-- Naturally deduplicates shared message history
-- Makes branching conversations trivial
-- Allows for easy backup and synchronization
-- Enables future features like message linking or forking
-
-### Message Format
-```json
-{
-  "role": "user"|"assistant",
-  "content": "message text",
-  "parent": "sha1_hash_of_parent_message", // null for root
-  "id": "sha1_hash_of_this_message"
-}
-```
-
-### Chat Format
-```json
-{
-  "title": "Chat Title",
-  "head": "sha1_hash_of_latest_message"
-}
-```
+- Provides simple, reliable storage
+- Makes backup and synchronization straightforward
+- Enables easy inspection and debugging
+- Supports future enhancements like replication
 
 ## Key Features
 
 ### Persistence
-- All messages and chat metadata are automatically persisted to disk
-- Messages are immutable and content-addressed
-- Chat state can be rebuilt from disk on actor restart
+- All data is automatically persisted to disk
+- Atomic write operations ensure data consistency
+- State can be rebuilt from disk on actor restart
 
-### Branching Support
-The DAG structure enables:
-- Creating alternate conversation branches
-- Maintaining multiple chat heads that share history
-- Future features like "what-if" exploration of different responses
+### Content Addressing
+- Optional content-addressed storage using SHA1 hashes
+- Natural deduplication of identical content
+- Content integrity verification
+- Efficient caching of frequently accessed data
 
-### Message Caching
-- Recently accessed messages are cached in memory
-- Full history can always be reconstructed from disk
+### Simple Interface
+- Basic key-value operations (get, put, delete)
+- Support for both direct key access and content addressing
+- Built-in support for JSON serialization
+- Clear error handling
 
 ## Event Types
 
-### `new_chat`
-Create a new chat thread:
+### `put`
+Store a value with a given key:
 ```json
 {
-  "type": "new_chat",
-  "title": "Chat Title"
+  \"type\": \"put\",
+  \"key\": \"some_key\",
+  \"value\": \"any json value\"
 }
 ```
 
-### `user_message`
-Add a user message to current chat:
+### `get`
+Retrieve a value by key:
 ```json
 {
-  "type": "user_message",
-  "text": "message content"
+  \"type\": \"get\",
+  \"key\": \"some_key\"
 }
 ```
 
-### `assistant_response`
-Record assistant's response:
+### `delete`
+Remove a value:
 ```json
 {
-  "type": "assistant_response",
-  "text": "response content"
+  \"type\": \"delete\",
+  \"key\": \"some_key\"
 }
 ```
 
-### `switch_chat`
-Switch to a different chat:
+### `store_content`
+Store content-addressed data:
 ```json
 {
-  "type": "switch_chat",
-  "title": "Chat Title"
+  \"type\": \"store_content\",
+  \"content\": \"any json value\"
 }
 ```
+
+### `get_content`
+Retrieve content by hash:
+```json
+{
+  \"type\": \"get_content\",
+  \"hash\": \"sha1_hash\"
+}
+```
+
+## Configuration
+
+The actor is configured via `actor.toml`:
+- Implements the `ntwk:actor/actor` interface
+- Requires filesystem access for persistence
+- Data directory is configured in the filesystem handler
 
 ## Why These Design Choices?
 
-### Why a DAG?
-1. **Natural Branching**: The DAG structure makes it trivial to create alternate conversation paths from any point in history.
-2. **Efficient Storage**: Common history is automatically shared between branches.
-3. **Immutable History**: Messages are immutable and content-addressed, making the system more reliable and easier to reason about.
-4. **Future Flexibility**: The structure can easily accommodate new features like:
-   - Message linking across conversations
-   - Parallel exploration of different responses
-   - Conversation merging
-   - Undo/redo functionality
-
-### Why Flat Storage?
-1. **Simplicity**: A flat key-value store is easy to understand and maintain
-2. **Deduplication**: Shared messages are automatically stored only once
-3. **Easy Backup**: Simple to copy, sync, or backup the data directory
-4. **Flexibility**: New types of objects can be added without changing the storage structure
+### Why a Flat Key-Value Store?
+1. **Simplicity**: Easy to understand and implement correctly
+2. **Flexibility**: Can support many different usage patterns
+3. **Performance**: Direct key lookup is fast and predictable
+4. **Reliability**: Fewer moving parts means fewer failure modes
 
 ### Why Content Addressing?
-1. **Deduplication**: Identical messages are automatically deduplicated
-2. **Integrity**: Easy to verify message content hasn't been modified
-3. **Caching**: Content-based addressing makes caching more effective
+1. **Deduplication**: Identical content is stored only once
+2. **Integrity**: Easy to verify content hasn't been modified
+3. **Caching**: Content-based addressing enables efficient caching
 4. **Distribution**: Enables future distributed features
 
 ## Future Possibilities
 
 The current design enables several future enhancements:
-1. Message annotations or metadata
-2. Alternative LLM responses at any point
-3. Conversation merging
-4. Distributed chat storage
-5. Advanced chat management features
-6. Message searching and linking
+1. Replication across multiple instances
+2. Advanced caching strategies
+3. Backup and restore functionality
+4. Content validation and type checking
+5. Pub/sub notifications for changes
+6. Query and filtering capabilities
 
-## Interaction with Other Components
+## Development
 
-### Browser UI
-- Receives formatted messages for display
-- Will need updates to support branching visualization
+Built using:
+- Rust for reliability and performance
+- WebAssembly for portability
+- Serde for serialization
+- SHA1 for content addressing
 
-### LLM Gateway
-- Receives full message history for context
-- Could be extended to support generating alternative responses
+The actor is compiled to WebAssembly and can run in any WASM runtime that implements the required interfaces.
