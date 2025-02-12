@@ -1,0 +1,17 @@
+name = "key-value"
+version = "0.1.0"
+description = "A key-value store actor"
+
+component_path = "/Users/colinrozzi/work/actors/key-value/target/wasm32-unknown-unknown/release/key_value.wasm"
+
+[interface]
+implements = "ntwk:actor/actor"
+requires = []
+
+[[handlers]]
+type = "runtime"
+config = {}
+
+[[handlers]]
+type = "filesystem"
+config = { path = "/Users/colinrozzi/work/actors/key-value/data"}
