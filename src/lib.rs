@@ -50,8 +50,8 @@ impl State {
 struct Component;
 
 impl ActorGuest for Component {
-    fn init() -> Vec<u8> {
-        log("Initializing chat state");
+    fn init(_data: Vec<u8>) -> Vec<u8> {
+        log("Initializing key-value store");
         let initial_state = State::new();
         //setup_data();
         serde_json::to_vec(&initial_state).unwrap()
